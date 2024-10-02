@@ -1,0 +1,27 @@
+{
+  "name": "challenge-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/index.js",
+    "build-express": "esbuild index.ts express.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outdir=dist/",
+    "test": "echo \"Error: no test specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.102",
+    "esbuild": "^0.14.54"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.165.0",
+    "@aws-sdk/lib-dynamodb": "^3.168.0",
+    "@skyra/star-wars-api": "^2.0.33",
+    "apollo-boost": "^0.4.9",
+    "cross-fetch": "^3.1.5",
+    "express": "^4.18.1",
+    "graphql-tag": "^2.12.6"
+  }
+}
