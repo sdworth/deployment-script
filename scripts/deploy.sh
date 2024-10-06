@@ -76,21 +76,52 @@ mv dist/index.js index.js
 zip -r function.zip index.js node_modules > /dev/null
 mv index.js dist/index.js
 
-say "creating lambdas..."
-aws lambda create-function \
-  --function-name checkins-backend \
-  --runtime nodejs20.x \
-  --zip-file fileb://function.zip \
-  --handler index.backend \
-  --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-read \
-  --environment Variables={DYNAMO_TABLE_NAME=$DYNAMODB_TABLE_NAME} \
-  > /dev/null
+if aws lambda get-function --function-name create-checkin &> /dev/null ; then
+  say "updating existing create-checkin function"
+  aws lambda update-function-code \
+    --function-name create-checkin \
+    --zip-file fileb://function.zip \
+    > /dev/null
+else
+  say "creating create-checkin function"
+  aws lambda create-function \
+    --function-name create-checkin \
+    --runtime nodejs20.x \
+    --zip-file fileb://function.zip \
+    --handler index.checkins \
+    --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-read+write \
+    --environment Variables={DYNAMO_TABLE_NAME=$DYNAMODB_TABLE_NAME} \
+    > /dev/null
+fi
 
-aws lambda create-function \
-  --function-name create-checkin \
-  --runtime nodejs20.x \
-  --zip-file fileb://function.zip \
-  --handler index.checkins \
-  --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-read+write \
-  --environment Variables={DYNAMO_TABLE_NAME=$DYNAMODB_TABLE_NAME} \
-  > /dev/null
+if aws lambda get-function --function-name checkins-backend &> /dev/null ; then
+  say "updating existing checkins-backend function"
+  aws lambda update-function-code \
+    --function-name checkins-backend \
+    --zip-file fileb://function.zip \
+    > /dev/null
+else
+  say "creating checkins-backend function"
+  aws lambda create-function \
+    --function-name checkins-backend \
+    --runtime nodejs20.x \
+    --zip-file fileb://function.zip \
+    --handler index.backend \
+    --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-read \
+    --environment Variables={DYNAMO_TABLE_NAME=$DYNAMODB_TABLE_NAME} \
+    > /dev/null
+fi
+
+if aws lambda get-function --function-name create-checkin &> /dev/null && aws lambda get-function --function-name checkins-backend &> /dev/null ; then
+  say "confirmed functions exist"
+else
+  say "could not confirm functions exist, exiting"
+  exit 0
+fi
+
+say "creating function url for the backend service"
+say "backend url:"
+printf "\n"
+aws lambda create-function-url-config \
+  --function-name checkins-backend \
+  --auth-type NONE | grep "FunctionUrl"
