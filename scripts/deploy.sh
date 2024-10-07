@@ -148,18 +148,30 @@ fi
 # ----------------------------------------
 # Scheduler Setup
 # ----------------------------------------
-say "creating scheduler"
-aws scheduler create-schedule \
-  --name create-checkin \
-  --flexible-time-window Mode=OFF \
-  --schedule-expression "rate(5 minutes)" \
-  --target "{\"Arn\": \"arn:aws:lambda:${REGION_NAME}:${AWS_ACCOUNT_ID}:function:create-checkin\", \"RoleArn\": \"arn:aws:iam::${AWS_ACCOUNT_ID}:role/scheduler-invoke\"}" \
-  > /dev/null
+if aws scheduler get-schedule --name create-checkin &> /dev/null ; then
+  say "⚠️ schedule already exists -- you may need to delete and try again ⚠️"
+else
+  say "creating scheduler"
+  aws scheduler create-schedule \
+    --name create-checkin \
+    --flexible-time-window Mode=OFF \
+    --schedule-expression "rate(5 minutes)" \
+    --target "{\"Arn\": \"arn:aws:lambda:${REGION_NAME}:${AWS_ACCOUNT_ID}:function:create-checkin\", \"RoleArn\": \"arn:aws:iam::${AWS_ACCOUNT_ID}:role/scheduler-invoke\"}" \
+    > /dev/null
+fi
 
 # ----------------------------------------
 # Function URL Setup
 # ----------------------------------------
 say "creating function url for the backend service"
+aws lambda add-permission \
+    --function-name checkins-backend \
+    --action lambda:InvokeFunctionUrl \
+    --statement-id FunctionURLAllowPublicAccess \
+    --principal "*" \
+    --function-url-auth-type NONE \
+    > /dev/null
+
 say "backend url:"
 printf "\n"
 aws lambda create-function-url-config \
