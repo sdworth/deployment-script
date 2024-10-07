@@ -3,23 +3,34 @@
 BACKGROUND_COLOR="\e[45m"
 TEXT_COLOR="\e[97m"
 END_COLOR="\e[0m"
+
 DYNAMODB_TABLE_NAME="checkins"
+REGION_NAME="us-east-1"
 
 say () {
  printf "\n${BACKGROUND_COLOR}${TEXT_COLOR}~ $1 ~${END_COLOR}"
 }
 
-say "creating iam roles..."
+# ----------------------------------------
+# IAM Setup
+# ----------------------------------------
+say "creating iam roles"
 aws iam create-role \
   --role-name lambda-read \
-  --assume-role-policy-document file://scripts/policies/lambda-trust-policy.json
+  --assume-role-policy-document file://scripts/policies/lambda-trust-policy.json \
   > /dev/null
 
 aws iam create-role \
   --role-name lambda-read+write \
-  --assume-role-policy-document file://scripts/policies/lambda-trust-policy.json
+  --assume-role-policy-document file://scripts/policies/lambda-trust-policy.json \
   > /dev/null
 
+aws iam create-role \
+  --role-name scheduler-invoke \
+  --assume-role-policy-document file://scripts/policies/scheduler-trust-policy.json \
+  > /dev/null
+
+say "attaching permissions to roles"
 aws iam put-role-policy \
   --role-name lambda-read \
   --policy-name dynamodb-read \
@@ -44,6 +55,15 @@ aws iam put-role-policy \
   --policy-document file://scripts/policies/logs.json \
   > /dev/null
 
+aws iam put-role-policy \
+  --role-name scheduler-invoke \
+  --policy-name lambda-invoke \
+  --policy-document file://scripts/policies/lambda-invoke.json \
+  > /dev/null
+
+# ----------------------------------------
+# Dynamodb Setup
+# ----------------------------------------
 if aws dynamodb describe-table --table-name $DYNAMODB_TABLE_NAME &> /dev/null; then
   say "using existing checkins DynamoDB table..."
 else
@@ -64,6 +84,9 @@ else
   exit 0
 fi
 
+# ----------------------------------------
+# Building Lambda files
+# ----------------------------------------
 say "running npm build"
 npm run build > /dev/null
 
@@ -76,6 +99,9 @@ mv dist/index.js index.js
 zip -r function.zip index.js node_modules > /dev/null
 mv index.js dist/index.js
 
+# ----------------------------------------
+# Function Setup
+# ----------------------------------------
 if aws lambda get-function --function-name create-checkin &> /dev/null ; then
   say "updating existing create-checkin function"
   aws lambda update-function-code \
@@ -88,7 +114,7 @@ else
     --function-name create-checkin \
     --runtime nodejs20.x \
     --zip-file fileb://function.zip \
-    --handler index.checkins \
+    --handler index.checkin \
     --role arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-read+write \
     --environment Variables={DYNAMO_TABLE_NAME=$DYNAMODB_TABLE_NAME} \
     > /dev/null
@@ -119,6 +145,20 @@ else
   exit 0
 fi
 
+# ----------------------------------------
+# Scheduler Setup
+# ----------------------------------------
+say "creating scheduler"
+aws scheduler create-schedule \
+  --name create-checkin \
+  --flexible-time-window Mode=OFF \
+  --schedule-expression "rate(5 minutes)" \
+  --target "{\"Arn\": \"arn:aws:lambda:${REGION_NAME}:${AWS_ACCOUNT_ID}:function:create-checkin\", \"RoleArn\": \"arn:aws:iam::${AWS_ACCOUNT_ID}:role/scheduler-invoke\"}" \
+  > /dev/null
+
+# ----------------------------------------
+# Function URL Setup
+# ----------------------------------------
 say "creating function url for the backend service"
 say "backend url:"
 printf "\n"
