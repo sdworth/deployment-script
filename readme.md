@@ -1,6 +1,6 @@
 # Scripting Challenge
 
-This repo provides a simple implementation of a deployment script to create a simple lambda-based AWS deployment from scratch.
+This repo provides a deployment script to create a simple lambda-based AWS deployment from scratch.
 
 The primary script that does this deployment is 
 
@@ -49,11 +49,13 @@ This script creates the following resources, and the IAM roles required to make 
 
 The checkin-backend function is then exposed to the internet using a public function url, which can be used to view the checkins from the dynamodb table.
 
-Lambdas were chosen for this deployment because of the straightforward functional nature of this code, as well as their relative ease of maintainability. The specific settings for this infrastructure are only intended for a test environment, and may need to be reconsidered in a true production deployment. For example, the billing mode for DynamoDB may need to be tweaked were this environment ever to get considerable traffic.
+Lambdas were chosen for this deployment because of the straightforward functional nature of this code, as well as the relative ease of maintainability lambdas provide. The specific settings for this infrastructure are only intended for a test environment, and may need to be reconsidered in a true production deployment. For example, the billing mode for DynamoDB may need to be tweaked were this environment ever to get considerable traffic.
+
+The lambdas are deployed using a zipfile, rather than a container based deployment. Given the size of the zipfile as it stands is quite small, this should result in better performance, especially at startup time, for the lambdas.
 
 Permissions are intended to follow the principle of least privilege, giving each service access only to the resources it needs.
 
-This deployment script is a simple monolith bash script, which is easy to create and edit for infrastructure on this size. However, for more complex needs, I would consider if a true infrastructure as code utility such as Terraform would be a better fit. 
+This deployment script is a simple monolith bash script, which is easy to create and edit for infrastructure on this size. However, for more complex needs, I would consider if a true infrastructure-as-code utility such as Terraform would be a better fit.
 
 Lastly, this script is intended to be run from a local environment. However, for production settings I would investigate integrating deployments into a CI/CD pipeline, rather than relying on direct local deployments. 
 
